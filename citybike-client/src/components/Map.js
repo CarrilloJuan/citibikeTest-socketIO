@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import Marker from "./Marker";
+import { SocketContext } from "../context/socketContext";
 
 const position = [25.761681, -80.191788];
 const zoom = 13;
 
 export default function Map() {
+  const [availableBikes] = useState([]);
+  const { socket } = useContext(SocketContext);
   return (
     <MapContainer center={position} zoom={zoom} scrollWheelZoom={false}>
       <TileLayer
