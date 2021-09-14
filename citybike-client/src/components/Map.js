@@ -1,26 +1,14 @@
-import React, { useContext, useState, useEffect } from "react";
+import React from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
-import Marker from "./Marker";
-import { SocketContext } from "../context/socketContext";
+import Marker from "./marker";
 
-const position = [25.761681, -80.191788];
-const zoom = 13;
-
-export default function Map() {
-  const [availableBikes, setAvailableBikes] = useState([]);
-  const { socket } = useContext(SocketContext);
-
-  useEffect(() => {
-    socket.on("available-bikes", (bikes) => {
-      const bikeStations = bikes?.stations;
-      if (bikeStations) {
-        setAvailableBikes(bikeStations);
-      }
-    });
-  }, [socket]);
-
+export default function Map({
+  availableBikes,
+  zoom = 12,
+  center = [25.761681, -80.191788],
+}) {
   return (
-    <MapContainer center={position} zoom={zoom} scrollWheelZoom={false}>
+    <MapContainer center={center} zoom={zoom} scrollWheelZoom={false}>
       <TileLayer
         attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
