@@ -2,10 +2,11 @@ const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 var cors = require("cors");
-const citybikeurl = "http://api.citybik.es/v2/networks/decobike-miami-beach";
+const { getAvailableBikes } = require("./services/cityBikes");
 
 const port = process.env.PORT || 4001;
 const index = require("./routes/index");
+const { constants } = require("fs");
 const app = express();
 
 app.use(cors());
@@ -19,14 +20,14 @@ const io = socketIo(server, {
     methods: ["GET", "POST"],
   },
 }); // < Interesting!
-let interval;
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   var socketId = socket.id;
   var clientIp = socket.request.connection.remoteAddress;
   console.log("New connection " + socketId + " from " + clientIp);
 
-  io.emit("available-bikes", []);
+  const availableBikes = await getAvailableBikes();
+  io.emit("available-bikes", availableBikes);
 
   socket.on("disconnect", () => {
     console.log("Client disconnected");
