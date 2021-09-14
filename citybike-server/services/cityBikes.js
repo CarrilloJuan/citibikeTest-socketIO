@@ -2,10 +2,14 @@ const axios = require("axios").default;
 
 const citybikeurl = "http://api.citybik.es/v2/networks/decobike-miami-beach";
 
-const getAvailableBikes = async () => {
+const getAvailableBikes = async (socket) => {
   try {
-    const { data } = await axios.get(citybikeurl);
-    return data.network;
+    const reponse = await axios.get(citybikeurl);
+    const citybikeData = reponse?.data?.network;
+    if (socket) {
+      socket.emit("available-bikes", citybikeData);
+    }
+    return citybikeData;
   } catch (error) {
     console(error);
   }
@@ -14,5 +18,3 @@ const getAvailableBikes = async () => {
 module.exports = {
   getAvailableBikes,
 };
-
-let interval;

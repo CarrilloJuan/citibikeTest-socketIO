@@ -12,7 +12,7 @@ export default function Map() {
 
   useEffect(() => {
     socket.on("available-bikes", (bikes) => {
-      const bikeStations = bikes.stations;
+      const bikeStations = bikes?.stations;
       if (bikeStations) {
         setAvailableBikes(bikeStations);
       }
