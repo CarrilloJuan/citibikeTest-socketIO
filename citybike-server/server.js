@@ -2,7 +2,11 @@ const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 var cors = require("cors");
-const { getAvailableBikes } = require("./services/cityBikes");
+const {
+  loadAvailableBikes,
+  getAvailableBikes,
+  getAvailableBikesByTime,
+} = require("./services/cityBikes");
 
 const port = process.env.PORT || 4001;
 const index = require("./routes/index");
@@ -27,13 +31,14 @@ io.on("connection", async (socket) => {
   var clientIp = socket.request.connection.remoteAddress;
   console.log("New connection " + socketId + " from " + clientIp);
 
-  const availableBikes = await getAvailableBikes();
-  io.emit("available-bikes", availableBikes);
+  socket.emit("available-bikes", loadAvailableBikes(socket));
 
   if (interval) {
     clearInterval(interval);
   }
-  interval = setInterval(() => getAvailableBikes(socket), 10000);
+  interval = setInterval(() => getAvailableBikes(socket), 60000);
+
+  socket.on("re-play", (timeId) => getAvailableBikesByTime(socket, timeId));
 
   socket.on("disconnect", () => {
     console.log("Client disconnected");
