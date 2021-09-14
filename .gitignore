@@ -23,4 +23,4 @@ yarn-error.log*
 
 .DS_Store
 
-citybike-server/db/available-bikes*
+# citybike-server/db/available-bikes*

@@ -1,0 +1,51 @@
+.container {
+  min-height: 150px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  background-image: url("../../assets/images//bikes2.jpeg");
+
+  background-size: cover;
+  box-shadow: inset 0 0 0 2000px rgba(11, 17, 102, 0.323);
+  padding-top: 18px;
+
+  color: #e9eef7;
+}
+
+.title {
+  text-align: center;
+  font-size: 2rem;
+}
+
+.stats {
+  text-align: center;
+  margin-top: 18px;
+}
+
+.stat {
+  font-size: 1.4rem;
+}
+
+@media (min-width: 768px) {
+  .container {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+
+    background-position: center -55%;
+  }
+
+  .stats {
+    order: 1;
+  }
+
+  .title {
+    order: 2;
+  }
+
+  .stats {
+    order: 3;
+  }
+}
