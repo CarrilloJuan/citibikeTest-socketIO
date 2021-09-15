@@ -1,3 +1,7 @@
+## Preview
+
+![City Bikes Demo](demo/demo.gif)
+
 ## Objective
 
 Test with [socket.io](https://socket.io/) and [react-leaflet](https://react-leaflet.js.org/) using the [citybik](https://citybik.es/) api to display the availability of bikes at each station.
