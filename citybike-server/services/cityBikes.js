@@ -1,17 +1,22 @@
 const axios = require("axios").default;
 
 const { loadBikes, renameFile, storeBikes, removeFile } = require("../db/db");
-const { checkIfStationsChange } = require("./helpers");
+const { checkIfStationsChange, getStats } = require("./helpers");
 const { buildPath } = require("../utils/fs");
 
-const CITY_BIKE_URL = "http://api.citybik.es/v2/networks/velib";
+const CITY_BIKE_URL =
+  process.env.CITY_BIKE_URL ||
+  "http://api.citybik.es/v2/networks/decobike-miami-beach";
 
 const loadAvailableBikes = async (socket) => {
   try {
     const reponse = await axios.get(CITY_BIKE_URL);
     const citybikesData = reponse?.data?.network;
+
     await storeBikes(citybikesData);
-    socket.emit("available-bikes", citybikesData);
+
+    const stats = getStats(citybikesData.stations);
+    socket.emit("available-bikes", { ...citybikesData, stats });
   } catch (error) {
     console.log(error);
   }
@@ -22,7 +27,8 @@ const getCurrentAvailableBikes = async (socket) => {
     const reponse = await axios.get(CITY_BIKE_URL);
     const citybikesData = reponse?.data?.network;
 
-    socket.emit("available-bikes", citybikesData);
+    const stats = getStats(citybikesData.stations);
+    socket.emit("available-bikes", { ...citybikesData, stats });
 
     compareWithLastAvailableBikes(citybikesData);
     return citybikesData;
@@ -31,33 +37,46 @@ const getCurrentAvailableBikes = async (socket) => {
   }
 };
 
+const MAX_FILES = 2;
 const sortAvailablesBikesFiles = async () => {
+  const oldRangeTimeFile = "available-bikes-1.json";
+  const middleRangeTimeFile = "available-bikes-2.json";
+  const lastUpdate = "last-available-bikes.json";
+
   try {
     const [dataOldRangeTime, dataMiddleRangeTime] = await Promise.all([
-      await loadBikes(buildPath({ fileName: "available-bikes-2.json" })),
-      await loadBikes(buildPath({ fileName: "last-available-bikes.json" })),
+      await loadBikes(buildPath({ fileName: middleRangeTimeFile })),
+      await loadBikes(buildPath({ fileName: lastUpdate })),
     ]);
 
     // Override the oldest time range of available bikes
     const overrideOldestBucketPromise = storeBikes(
       dataOldRangeTime,
-      buildPath({ fileName: "available-bikes-1.json" })
+      buildPath({ fileName: oldRangeTimeFile })
     );
 
     // Override the middle time range of available bikes
     const overrideMiddleBucketPromise = storeBikes(
       dataMiddleRangeTime,
-      buildPath({ fileName: "available-bikes-2.json" })
+      buildPath({ fileName: middleRangeTimeFile })
     );
 
     await Promise.all([
       overrideOldestBucketPromise,
       overrideMiddleBucketPromise,
     ]);
+
+    return true;
   } catch (error) {
     console.log(error);
-    // It should be handled like a db transaction, but for now, if fails we
-    // clean buckets
+    // It should be handled like a db transaction and rollback the changes, but
+    // for now, if fails we clean buckets
+    await Promise.all([
+      removeFile(buildPath({ fileName: oldRangeTimeFile })),
+      removeFile(buildPath({ fileName: middleRangeTimeFile })),
+    ]);
+
+    return false;
   }
 };
 
@@ -76,16 +95,16 @@ const compareWithLastAvailableBikes = async (citybikesData) => {
 
   if (!stationsWereUpdated) return;
 
-  let updatesCount = lastUpdatesCount + 1;
+  let updatesCount = lastUpdatesCount;
 
-  // It avoids infinite files, Could be in a cache instance instead of files,
+  // It avoids infinite files, could be in a cache instance instead of files,
   // but for simplicity
-  if (lastUpdatesCount === 2) {
-    await sortAvailablesBikesFiles();
-    updatesCount = 2;
+  if (lastUpdatesCount === MAX_FILES && !(await sortAvailablesBikesFiles())) {
+    updatesCount = 0;
   } else {
+    updatesCount = lastUpdatesCount + 1;
     const newNameForLastAvailableBikesFile = `available-bikes-${updatesCount}.json`;
-    await renameFile(buildPath(newNameForLastAvailableBikesFile));
+    await renameFile(buildPath({ fileName: newNameForLastAvailableBikesFile }));
   }
 
   const dataForLastAvailableBikesData = { ...citybikesData, updatesCount };

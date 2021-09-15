@@ -7,7 +7,7 @@ const defaultFilePath = buildPath({
   fileName: defaultFileName,
 });
 
-// TODO: Add error handling
+// TODO: Add error handling, validate path
 const storeBikes = async (data, filePath = defaultFilePath) => {
   try {
     await fsPromises.writeFile(filePath, JSON.stringify(data));

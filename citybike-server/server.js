@@ -1,7 +1,7 @@
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
-var cors = require("cors");
+const cors = require("cors");
 
 const index = require("./routes/index");
 const {
@@ -10,6 +10,7 @@ const {
   getAvailableBikesByTime,
 } = require("./services/cityBikes");
 
+// To timestamps compare, "EDT" Miami
 process.env.TZ = "EDT";
 const port = process.env.PORT || 4001;
 const app = express();
@@ -26,8 +27,8 @@ const io = socketIo(server, {
 let getCurrentAvailableBikesInterval;
 
 io.on("connection", async (socket) => {
-  var socketId = socket.id;
-  var clientIp = socket.request.connection.remoteAddress;
+  const socketId = socket.id;
+  const clientIp = socket.request.connection.remoteAddress;
   console.log("New connection " + socketId + " from " + clientIp);
 
   socket.emit("available-bikes", loadAvailableBikes(socket));
