@@ -16,7 +16,6 @@ const initialState = {
 const reducer = (state, action) => {
   const { type, payload } = action;
   const { stations = [], stats = [], location } = payload;
-  console.log(action.type);
 
   switch (type) {
     case "SET_CURRENT_AVAILABLE_BIKES":
