@@ -26,4 +26,4 @@ cd /citibike-client
 
 That is the client React Application to start :
 
-npm strat
+npm start
