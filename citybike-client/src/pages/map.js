@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useMemo } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import Map from "../components/map/map";
 import Footer from "../components/footer/footer";
 import { SocketContext } from "../context/socketContext";
@@ -18,13 +18,14 @@ export default function MapPage() {
   const [currentAvailableBikes, setCurrentAvailableBikes] = useState([]);
   const [availableBikesByTime, setAvailableBikesByTime] = useState([]);
   const [location, setLocation] = useState({});
+  const [stats, setStats] = useState({});
 
   const availableBikes =
     availableBikesByTime.length > 0
       ? availableBikesByTime
       : currentAvailableBikes;
 
-  const [selectedValue, setSelectedValue] = useState("Orange");
+  const [selectedValue, setSelectedValue] = useState("current");
   const { socket } = useContext(SocketContext);
 
   const handleOnSelectChange = (e) => {
@@ -32,6 +33,7 @@ export default function MapPage() {
     setSelectedValue(selected);
     if (selected === "current") {
       setAvailableBikesByTime([]);
+      return;
     }
     socket.emit("re-play", selected);
   };
@@ -55,8 +57,12 @@ export default function MapPage() {
     });
   }, [socket]);
 
+  useEffect(() => {
+    const newStats = getStats(availableBikes);
+    setStats(newStats);
+  }, [availableBikes, currentAvailableBikes]);
+
   const { city, latitude = 48.856612, longitude = 2.352233 } = location;
-  const stats = useMemo(() => getStats(availableBikes), [availableBikes]);
 
   return (
     <div className={styles.container}>
