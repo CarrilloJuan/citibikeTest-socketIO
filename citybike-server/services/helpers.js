@@ -1,11 +1,12 @@
-const timeToUpdate = 1000;
+// Four hours in ms
+const timeToTrackChangest = 240 * 60 * 1000;
 
 const compareLastUpdateBaseOnTimestamp = (lastTimestamp, currentTimestamp) => {
   const currentDate = new Date(currentTimestamp);
   const lastDate = new Date(lastTimestamp);
   const diffInMillis = currentDate.getTime() - lastDate.getTime();
 
-  return diffInMillis > timeToUpdate;
+  return diffInMillis > timeToTrackChangest;
 };
 
 const checkIfStationsChange = (currentStations, lastStationsSaved) =>

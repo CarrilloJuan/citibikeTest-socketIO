@@ -1,68 +1,102 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useReducer } from "react";
 import Map from "../components/map/map";
 import Footer from "../components/footer/footer";
 import { SocketContext } from "../context/socketContext";
 import styles from "./style.module.css";
 
-const getStats = (statatios = []) =>
-  statatios.reduce(
-    (acc, s) => ({
-      ...acc,
-      emptySlots: acc.emptySlots + s.empty_slots,
-      freeBikes: acc.freeBikes + s.free_bikes,
-    }),
-    { emptySlots: 0, freeBikes: 0 }
-  );
+const initialState = {
+  currentAvailableBikes: [],
+  availableBikesByTime: [],
+  displayAvailableBickesByTime: false,
+  location: {},
+  statsByTime: [],
+  currentStats: [],
+};
+
+const reducer = (state, action) => {
+  const { type, payload } = action;
+  const { stations = [], stats = [], location } = payload;
+  console.log(action.type);
+
+  switch (type) {
+    case "SET_CURRENT_AVAILABLE_BIKES":
+      return {
+        ...state,
+        location,
+        currentStats: stats,
+        currentAvailableBikes: stations,
+      };
+    case "SET_AVAILABLE_BIKES_BY_RANGE_TIME":
+      if (stations.length > 0) {
+        return {
+          ...state,
+          statsByTime: stats,
+          availableBikesByTime: stations,
+        };
+      }
+      return {
+        ...state,
+        displayAvailableBickesByTime: false,
+      };
+    case "DISPLAY_AVAILABLE_BY_TIME":
+      return {
+        ...state,
+        displayAvailableBickesByTime: action.payload,
+      };
+    default:
+      return state;
+  }
+};
 
 export default function MapPage() {
-  const [currentAvailableBikes, setCurrentAvailableBikes] = useState([]);
-  const [availableBikesByTime, setAvailableBikesByTime] = useState([]);
-  const [location, setLocation] = useState({});
-  const [stats, setStats] = useState({});
-
-  const availableBikes =
-    availableBikesByTime.length > 0
-      ? availableBikesByTime
-      : currentAvailableBikes;
-
+  const [state, dispatch] = useReducer(reducer, initialState);
   const [selectedValue, setSelectedValue] = useState("current");
   const { socket } = useContext(SocketContext);
+
+  useEffect(() => {
+    socket.on("current-available-bikes", (availableBikesData) => {
+      dispatch({
+        type: "SET_CURRENT_AVAILABLE_BIKES",
+        payload: availableBikesData,
+      });
+    });
+  }, [socket]);
 
   const handleOnSelectChange = (e) => {
     const selected = e.target.value;
     setSelectedValue(selected);
-    if (selected === "current") {
-      setAvailableBikesByTime([]);
-      return;
-    }
     socket.emit("re-play", selected);
+    if (selected === "current") {
+      return dispatch({ type: "DISPLAY_AVAILABLE_BY_TIME", payload: false });
+    }
+    dispatch({ type: "DISPLAY_AVAILABLE_BY_TIME", payload: true });
   };
 
   useEffect(() => {
-    socket.on("available-bikes", (availableBikesData) => {
-      const { location = {}, stations = [] } = availableBikesData || {};
-      setLocation(location);
-      if (stations.length > 0) {
-        setCurrentAvailableBikes(stations);
-      }
+    socket.on("available-bikes-by-time", (availableBikesData) => {
+      dispatch({
+        type: "SET_AVAILABLE_BIKES_BY_RANGE_TIME",
+        payload: availableBikesData,
+      });
     });
   }, [socket]);
 
-  useEffect(() => {
-    socket.on("available-bikes-by-time", (bikes) => {
-      const bikeStations = bikes?.stations;
-      if (bikeStations) {
-        setAvailableBikesByTime(bikeStations);
-      }
-    });
-  }, [socket]);
+  const {
+    currentAvailableBikes,
+    availableBikesByTime,
+    displayAvailableBickesByTime,
+    location,
+    statsByTime,
+    currentStats,
+  } = state;
 
-  useEffect(() => {
-    const newStats = getStats(availableBikes);
-    setStats(newStats);
-  }, [availableBikes, currentAvailableBikes]);
+  const { city, latitude = 25.790654, longitude = -80.1300455 } = location;
 
-  const { city, latitude = 48.856612, longitude = 2.352233 } = location;
+  const availableBikes = displayAvailableBickesByTime
+    ? availableBikesByTime
+    : currentAvailableBikes;
+
+  const stats = displayAvailableBickesByTime ? statsByTime : currentStats;
 
   return (
     <div className={styles.container}>

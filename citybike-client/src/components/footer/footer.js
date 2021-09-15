@@ -15,9 +15,9 @@ export default function Footer({
       <div style={{ marginTop: 16 }}>
         <select value={selectedValue} onChange={handleOnSelectChange}>
           <option value="current">current</option>
-          <option value="3">Last four hours</option>
+          <option value="1">Last four hours</option>
           <option value="2">Last eight hours</option>
-          <option value="1">Last twelve hours</option>
+          <option value="3">Last twelve hours</option>
         </select>
       </div>
 
