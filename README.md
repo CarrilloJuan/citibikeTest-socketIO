@@ -1,6 +1,6 @@
 ## Preview
 
-![City Bikes Demo](demo/demo.gif)
+![City Bikes Demo](demo/demo.png)
 
 ## Objective
 
