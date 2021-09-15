@@ -1,24 +1,20 @@
-process.env.TZ = "EDT";
-const availableBikesItervalInHours = 4;
+const availableBikesItervalInHours = 1;
 
 const compareTimestamp = (lastTimestamp, currentTimestamp) => {
-  const currentHour = new Date(currentTimestamp).getHours();
-  const lastHour = new Date(lastTimestamp).getHours();
+  const currentHour = new Date(currentTimestamp).getMilliseconds();
+  const lastHour = new Date(lastTimestamp).getMilliseconds();
   return lastHour + availableBikesItervalInHours <= currentHour;
 };
 
-const checkIfTimestampChange = (currentStations, lastStationsSaved) => {
-  let wereUpdated = false;
-  currentStations.forEach((cStation) => {
-    wereUpdated = lastStationsSaved.some((lStation) => {
+const checkIfStationsChange = (currentStations, lastStationsSaved) =>
+  currentStations.some((cStation) =>
+    lastStationsSaved.some((lStation) => {
       if (lStation.id === cStation.id) {
         return compareTimestamp(lStation.timestamp, cStation.timestamp);
       }
-    });
-  });
-  return wereUpdated;
-};
+    })
+  );
 
 module.exports = {
-  checkIfTimestampChange,
+  checkIfStationsChange,
 };

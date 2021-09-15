@@ -1,12 +1,14 @@
 const axios = require("axios").default;
-const { loadBikes, renameFile, storeBikes } = require("../db/db");
-const { checkIfTimestampChange } = require("./helpers");
 
-const citybikeurl = "http://api.citybik.es/v2/networks/decobike-miami-beach";
+const { loadBikes, renameFile, storeBikes, removeFile } = require("../db/db");
+const { checkIfStationsChange } = require("./helpers");
+const { buildPath } = require("../utils/fs");
+
+const CITY_BIKE_URL = "http://api.citybik.es/v2/networks/velib";
 
 const loadAvailableBikes = async (socket) => {
   try {
-    const reponse = await axios.get(citybikeurl);
+    const reponse = await axios.get(CITY_BIKE_URL);
     const citybikesData = reponse?.data?.network;
     await storeBikes(citybikesData);
     socket.emit("available-bikes", citybikesData);
@@ -15,9 +17,9 @@ const loadAvailableBikes = async (socket) => {
   }
 };
 
-const getAvailableBikes = async (socket) => {
+const getCurrentAvailableBikes = async (socket) => {
   try {
-    const reponse = await axios.get(citybikeurl);
+    const reponse = await axios.get(CITY_BIKE_URL);
     const citybikesData = reponse?.data?.network;
 
     socket.emit("available-bikes", citybikesData);
@@ -29,30 +31,73 @@ const getAvailableBikes = async (socket) => {
   }
 };
 
-const compareWithLastAvailableBikes = async (citybikesData) => {
-  const loadedBikes = await loadBikes();
-  if (!loadedBikes) return;
+const sortAvailablesBikesFiles = async () => {
+  try {
+    const [dataOldRangeTime, dataMiddleRangeTime] = await Promise.all([
+      await loadBikes(buildPath({ fileName: "available-bikes-2.json" })),
+      await loadBikes(buildPath({ fileName: "last-available-bikes.json" })),
+    ]);
 
-  const { stations: currentStations } = citybikesData;
-  const { stations: loadedSaved, updatesCount = 0 } = loadedBikes;
-  const stationsWereUpdated = checkIfTimestampChange(
-    currentStations,
-    loadedSaved
-  );
+    // Override the oldest time range of available bikes
+    const overrideOldestBucketPromise = storeBikes(
+      dataOldRangeTime,
+      buildPath({ fileName: "available-bikes-1.json" })
+    );
 
-  if (stationsWereUpdated) {
-    const newCount = updatesCount + 1;
-    const newFileName = `available-bikes-${newCount}.json`;
-    await renameFile(newFileName);
-    const newBikes = { ...citybikesData, updatesCount: newCount };
-    await storeBikes(newBikes);
+    // Override the middle time range of available bikes
+    const overrideMiddleBucketPromise = storeBikes(
+      dataMiddleRangeTime,
+      buildPath({ fileName: "available-bikes-2.json" })
+    );
+
+    await Promise.all([
+      overrideOldestBucketPromise,
+      overrideMiddleBucketPromise,
+    ]);
+  } catch (error) {
+    console.log(error);
+    // It should be handled like a db transaction, but for now, if fails we
+    // clean buckets
   }
 };
 
-const getAvailableBikesByTime = async (socket, timeId) => {
-  const fileName = `available-bikes-${timeId}.json`;
-  let loadedBikes = await loadBikes({ fileName });
+const compareWithLastAvailableBikes = async (citybikesData) => {
+  const loadedLastAvailableBikes = await loadBikes();
+  if (!loadedLastAvailableBikes) return;
 
+  const { stations: currentStations } = citybikesData;
+  const { stations: lastStationsSaved, updatesCount: lastUpdatesCount = 0 } =
+    loadedLastAvailableBikes;
+
+  const stationsWereUpdated = checkIfStationsChange(
+    currentStations,
+    lastStationsSaved
+  );
+
+  if (!stationsWereUpdated) return;
+
+  let updatesCount = lastUpdatesCount + 1;
+
+  // It avoids infinite files, Could be in a cache instance instead of files,
+  // but for simplicity
+  if (lastUpdatesCount === 2) {
+    await sortAvailablesBikesFiles();
+    updatesCount = 2;
+  } else {
+    const newNameForLastAvailableBikesFile = `available-bikes-${updatesCount}.json`;
+    await renameFile(buildPath(newNameForLastAvailableBikesFile));
+  }
+
+  const dataForLastAvailableBikesData = { ...citybikesData, updatesCount };
+  await storeBikes(dataForLastAvailableBikesData);
+};
+
+const getAvailableBikesByTime = async (socket, timeRange) => {
+  let loadedBikes = await loadBikes(
+    buildPath({ fileName: `available-bikes-${timeRange}.json` })
+  );
+
+  // Load last saved bikes data
   if (!loadedBikes) {
     loadedBikes = await loadBikes();
   }
@@ -60,7 +105,7 @@ const getAvailableBikesByTime = async (socket, timeId) => {
 };
 
 module.exports = {
-  getAvailableBikes,
-  getAvailableBikesByTime,
   loadAvailableBikes,
+  getCurrentAvailableBikes,
+  getAvailableBikesByTime,
 };
