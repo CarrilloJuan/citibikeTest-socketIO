@@ -12,11 +12,12 @@ const loadAvailableBikes = async (socket) => {
   try {
     const reponse = await axios.get(CITY_BIKE_URL);
     const citybikesData = reponse?.data?.network;
+    const { updatesCount: lastUpdatesCount = 0 } = await loadBikes();
 
-    await storeBikes(citybikesData);
+    await storeBikes({ ...citybikesData, updatesCount: lastUpdatesCount });
 
     const stats = getStats(citybikesData.stations);
-    socket.emit("available-bikes", { ...citybikesData, stats });
+    socket.emit("current-available-bikes", { ...citybikesData, stats });
   } catch (error) {
     console.log(error);
   }
@@ -28,7 +29,7 @@ const getCurrentAvailableBikes = async (socket) => {
     const citybikesData = reponse?.data?.network;
 
     const stats = getStats(citybikesData.stations);
-    socket.emit("available-bikes", { ...citybikesData, stats });
+    socket.emit("current-available-bikes", { ...citybikesData, stats });
 
     compareWithLastAvailableBikes(citybikesData);
     return citybikesData;
@@ -37,7 +38,6 @@ const getCurrentAvailableBikes = async (socket) => {
   }
 };
 
-const MAX_FILES = 2;
 const sortAvailablesBikesFiles = async () => {
   const oldRangeTimeFile = "available-bikes-1.json";
   const middleRangeTimeFile = "available-bikes-2.json";
@@ -80,6 +80,7 @@ const sortAvailablesBikesFiles = async () => {
   }
 };
 
+const MAX_BUCKETS = 2;
 const compareWithLastAvailableBikes = async (citybikesData) => {
   const loadedLastAvailableBikes = await loadBikes();
   if (!loadedLastAvailableBikes) return;
@@ -95,14 +96,17 @@ const compareWithLastAvailableBikes = async (citybikesData) => {
 
   if (!stationsWereUpdated) return;
 
-  let updatesCount = lastUpdatesCount;
+  let updatesCount;
+  const isLimitedByMaxBuckets = lastUpdatesCount >= MAX_BUCKETS;
 
   // It avoids infinite files, could be in a cache instance instead of files,
-  // but for simplicity
-  if (lastUpdatesCount === MAX_FILES && !(await sortAvailablesBikesFiles())) {
+  // but for simplicity, if there is an error reset the count
+  if (isLimitedByMaxBuckets && !(await sortAvailablesBikesFiles())) {
     updatesCount = 0;
   } else {
-    updatesCount = lastUpdatesCount + 1;
+    updatesCount = isLimitedByMaxBuckets
+      ? lastUpdatesCount
+      : lastUpdatesCount + 1;
     const newNameForLastAvailableBikesFile = `available-bikes-${updatesCount}.json`;
     await renameFile(buildPath({ fileName: newNameForLastAvailableBikesFile }));
   }
@@ -112,15 +116,26 @@ const compareWithLastAvailableBikes = async (citybikesData) => {
 };
 
 const getAvailableBikesByTime = async (socket, timeRange) => {
-  let loadedBikes = await loadBikes(
-    buildPath({ fileName: `available-bikes-${timeRange}.json` })
-  );
+  let availableBikesForTime;
 
-  // Load last saved bikes data
-  if (!loadedBikes) {
-    loadedBikes = await loadBikes();
+  if (timeRange === "current") {
+    availableBikesForTime = await loadBikes();
+  } else {
+    availableBikesForTime = await loadBikes(
+      buildPath({ fileName: `available-bikes-${timeRange}.json` })
+    );
   }
-  socket.emit("available-bikes-by-time", loadedBikes);
+
+  // When cannot load data for time, them load last saved data
+  if (!availableBikesForTime) {
+    const { updatesCount: lastUpdatesCount } = await loadBikes();
+    availableBikesForTime = await loadBikes(
+      buildPath({ fileName: `available-bikes-${lastUpdatesCount}.json` })
+    );
+  }
+
+  const stats = getStats(availableBikesForTime.stations);
+  socket.emit("available-bikes-by-time", { ...availableBikesForTime, stats });
 };
 
 module.exports = {

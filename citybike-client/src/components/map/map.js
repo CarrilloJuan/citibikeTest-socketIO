@@ -1,15 +1,23 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import Marker from "../marker/marker";
 import styles from "./style.module.css";
 
 export default function Map({ availableBikes, zoom = 12, center }) {
+  const [map, setMap] = useState(null);
+
+  useEffect(() => {
+    if (map) {
+      map.setView(center, zoom);
+    }
+  }, [map, center, zoom]);
+
   return (
     <MapContainer
       className={styles.container}
       center={center}
       zoom={zoom}
-      scrollWheelZoom={false}
+      whenCreated={setMap}
     >
       <TileLayer
         attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
